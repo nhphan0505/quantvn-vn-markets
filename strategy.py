@@ -13,11 +13,10 @@ client(apikey=api_key)
 def gen_position(df: pd.DataFrame) -> pd.DataFrame:
     """
     Chiến lược kết hợp giữa EMA crossover và RSI để xác định xu hướng và động lượng:
-    - Sử dụng EMA(9) và EMA(21) crossover để bắt xu hướng mượt mà hơn, tránh nhiễu.
+    - Sử dụng EMA(9) và EMA(26) crossover để bắt xu hướng mượt mà hơn, tránh nhiễu.
     - Bộ lọc Động lượng RSI:
         - Chỉ Long khi RSI > 52 (xu hướng tăng mạnh) và RSI < 70 (chưa quá mua).
         - Chỉ Short khi RSI < 48 (xu hướng giảm mạnh) và RSI > 30 (chưa quá bán).
-    - Giảm thiểu số lượng giao dịch ảo (Whipsaw) khi thị trường đi ngang.
     """
     df = df.copy()
     
@@ -25,7 +24,7 @@ def gen_position(df: pd.DataFrame) -> pd.DataFrame:
     df["EMA_fast"] = df["Close"].ewm(span=9, adjust=False).mean()
     df["EMA_slow"] = df["Close"].ewm(span=26, adjust=False).mean()
     
-    # 2. Tính toán RSI đơn giản
+    # 2. Tính toán RSI
     delta = df["Close"].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
@@ -43,8 +42,7 @@ def gen_position(df: pd.DataFrame) -> pd.DataFrame:
     df.loc[long_cond, "position"] = 1
     df.loc[short_cond, "position"] = -1
     
-    # Giữ nguyên vị thế trước đó nếu không có tín hiệu mới (tránh đóng/mở vị thế liên tục khi nhiễu)
-    # (Nếu không thỏa cả 2 điều kiện trên, ta có thể giữ nguyên vị thế thay vì đưa về 0)
+    # Giữ nguyên vị thế trước đó nếu không có tín hiệu mới
     df["position"] = df["position"].replace(0, np.nan).ffill().fillna(0)
     
     return df
